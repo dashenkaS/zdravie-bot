@@ -1,5 +1,11 @@
-fastapi
-uvicorn
+fastapi==0.110.0
+uvicorn==0.27.1
 python-telegram-bot==20.7
-python-dotenv
-aiohttp
+python-dotenv==1.0.1
+aiohttp==3.9.3
+sqlalchemy==2.0.28
+aiosqlite==0.20.0
+pydantic==2.6.3
+scikit-learn==1.4.1
+numpy==1.26.4
+reportlab==4.1.0
