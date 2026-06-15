@@ -153,6 +153,17 @@ def get_stats(db: Session = Depends(get_db)):
         "social_network": social_stats,
     }
 
+@app.delete("/user/{user_id}")
+def delete_user(user_id: int, db: Session = Depends(get_db)):
+    """Удалить пользователя по его Telegram ID"""
+    user = db.query(DBUserResponse).filter(
+        DBUserResponse.user_id == user_id
+    ).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+    db.delete(user)
+    db.commit()
+    return {"status": "ok", "message": f"Пользователь {user_id} удалён"}
 
 # ML-эндпоинты
 @app.post("/ml/train")
