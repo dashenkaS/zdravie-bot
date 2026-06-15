@@ -61,7 +61,7 @@ async def send_to_backend(data : dict):
 
     """
     Отправляем данные на наш FastAPI-сервер.
-    aiohttp — асинхронный HTTP-клиент (как requests, но для async-кода).
+    aiohttp - асинхронный HTTP-клиент (как requests, но для async-кода).
     Обёртываем в try/except чтобы бот не падал если сервер недоступен.
     """
 
@@ -97,8 +97,8 @@ def get_user_data(update: Update) -> dict:
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     """
-    /start — начало диалога.
-    Возвращаем FREQUENCY — переходим в состояние первого вопроса.
+    /start - начало диалога.
+    Возвращаем FREQUENCY - переходим в состояние первого вопроса.
     """
 
     user = update.effective_user
@@ -106,7 +106,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         f"Привет, {user.first_name}! 👋\n\n"
         "Я помогаю Галине лучше понять свою аудиторию.\n"
         "Пройди короткий опрос из 5 вопросов - это займёт меньше минуты.\n\n"
-        "Твои ответы помогут сделать контент канала ещё полезнее для тебя!"
+        "В качестве благодарности, за участие, вас ждёт подарок!\n"
+        "Ваши ответы помогут сделать контент канала ещё полезнее!"
     )
     await update.message.reply_text(welcome)
 
