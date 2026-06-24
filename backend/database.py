@@ -10,10 +10,10 @@ engine = create_engine(
     connect_args={"check_same_thread": False}
 )
 
-# каждый запрос к API получает свою сессию (соединение с БД)
+# каждый запрос к API получает свою сессию, соединение с БД
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# Базовый класс от которого наследуются все модели
+# базовый класс от которого наследуются все модели
 Base = declarative_base()
 
 
