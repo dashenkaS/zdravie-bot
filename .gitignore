@@ -1,4 +1,6 @@
 .env
+admins.json
 __pycache__/
 *.pyc
+*.db
 responses.json
