@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 
 from backend.database import create_tables, get_db, UserResponse as DBUserResponse
-from backend.ml_analysis import train_model, predict_segment, get_readiness_score
 
 # Создаём приложение
 app = FastAPI(
@@ -47,12 +46,10 @@ def root():
 @app.post("/save_response")
 def save_response(data: UserResponseSchema, db: Session = Depends(get_db)):
     """
-    Сохраняем ответ пользователя в БД
-
-    Логика:
-    Если пользователь уже есть - обновляем его запись
-    Это нужно потому что бот отправляет данные после каждого вопроса,
-    а не один раз в конце - так мы не теряем данные, если человек бросил опрос
+    Сохраняем ответ пользователя в БД:
+	Если пользователь уже есть - обновляем его запись
+    Бот отправляет данные после каждого вопроса,
+    так мы не теряем данные, если человек бросил опрос
 
     Depends(get_db) — FastAPI сам создаст сессию БД и передаст её сюда.
     """
@@ -63,7 +60,8 @@ def save_response(data: UserResponseSchema, db: Session = Depends(get_db)):
 
     if existing:
         for field, value in data.model_dump().items():
-            if value is not None:                           # Обновляем только те поля которые пришли
+        # Обновляем только те поля которые пришли
+            if value is not None:
                 setattr(existing, field, value)
         existing.updated_at = datetime.utcnow()
     else:
@@ -124,7 +122,7 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
 @app.get("/stats")
 def get_stats(db: Session = Depends(get_db)):
     """
-    Агрегированная статистика по всем ответам.
+    Статистика по всем ответам.
     Показывает сколько раз выбирался каждый вариант ответа.
     """
 
@@ -164,77 +162,3 @@ def delete_user(user_id: int, db: Session = Depends(get_db)):
     db.delete(user)
     db.commit()
     return {"status": "ok", "message": f"Пользователь {user_id} удалён"}
-
-# ML-эндпоинты
-@app.post("/ml/train")
-def train_ml(db: Session = Depends(get_db)):
-    """
-    Обучаем модель кластеризации KMeans.
-    Вызывать когда накопилось хотя бы 10 ответов.
-    После обучения модель сохраняется в файл ml_model.pkl.
-    """
-
-    rows = db.query(DBUserResponse).all()
-    responses_list = [
-        {
-            "visit_frequency": r.visit_frequency,
-            "health_satisfaction": r.health_satisfaction,
-            "consultation": r.consultation,
-            "topics": r.topics,
-        }
-        for r in rows
-    ]
-    return train_model(responses_list)
-
-
-@app.get("/ml/segment/{user_id}")
-def get_segment(user_id: int, db: Session = Depends(get_db)):
-    """
-    Определяем к какому сегменту (типу аудитории) относится пользователь.
-    Возвращает название сегмента и рекомендацию для работы с ним.
-    """
-
-    user = db.query(DBUserResponse).filter(
-        DBUserResponse.user_id == user_id
-    ).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="Пользователь не найден")
-
-    response_dict = {
-        "visit_frequency": user.visit_frequency,
-        "health_satisfaction": user.health_satisfaction,
-        "consultation": user.consultation,
-        "topics": user.topics,
-    }
-    segment = predict_segment(response_dict)
-    score = get_readiness_score(response_dict)
-    return {**segment, **score}
-
-
-@app.get("/ml/all_segments")
-def get_all_segments(db: Session = Depends(get_db)):
-    """
-    Показывает сегмент и балл готовности для каждого пользователя.
-    Удобно чтобы увидеть картину по всей аудитории.
-    """
-
-    rows = db.query(DBUserResponse).all()
-    result = []
-    for r in rows:
-        resp = {
-            "visit_frequency": r.visit_frequency,
-            "health_satisfaction": r.health_satisfaction,
-            "consultation": r.consultation,
-            "topics": r.topics,
-        }
-        seg = predict_segment(resp)
-        score = get_readiness_score(resp)
-        result.append({
-            "user_id": r.user_id,
-            "username": r.username,
-            "first_name": r.first_name,
-            "segment": seg.get("segment"),
-            "readiness_score": score.get("readiness_score"),
-            "readiness_level": score.get("readiness_level"),
-        })
-    return result
