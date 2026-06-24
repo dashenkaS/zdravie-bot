@@ -40,12 +40,12 @@ admins = load_admins()
 (CHOOSE_ACTION, BOOK_NAME, LEAVE_CONTACT,
  FREQUENCY, NOT_READING_WHY, TOPICS, HEALTH,
  CONSULTATION_BEEN, FEEDBACK_TYPE, FEEDBACK_TEXT,
- NOT_BEEN_WHY, SOCIAL, AFTER_SURVEY, BOOK_NAME_AFTER) = range(14)
+ NOT_BEEN_WHY, SOCIAL, AFTER_SURVEY, BOOK_NAME_AFTER, TOPICS_CUSTOM) = range(15)
 
 # Кнопки для каждого вопроса
 FREQ_KB = [["Несколько раз в неделю", "Несколько раз в месяц"], ["Не читаю"]]
 WHY_KB = [["Нет времени"], ["Не интересно"], ["Я здесь, чтобы не терять контакт специалиста"]]
-TOPICS_KB = [["Психосоматика", "Телесная терапия"], ["Нутрициология", "О личном"]]
+TOPICS_KB = [["Психосоматика", "Телесная терапия"], ["Нутрициология", "О личном"], ["Свой вариант"]]
 HEALTH_KB = [["100%", "75%"], ["50%", "Менее 50%"]]
 CONSULT_KB = [["Была / Был", "Не был(а)"]]
 FEEDBACK_KB = [["Всё понравилось 🌿", "Есть что улучшить 🌱"], ["Поделиться впечатлением..."]]
@@ -57,7 +57,7 @@ VALID = {
     CHOOSE_ACTION: ["Пройти опрос", "Записаться на приём"],
     FREQUENCY: ["Несколько раз в неделю", "Несколько раз в месяц", "Не читаю"],
     NOT_READING_WHY: ["Нет времени", "Не интересно", "Я здесь, чтобы не терять контакт специалиста"],
-    TOPICS: ["Психосоматика", "Телесная терапия", "Нутрициология", "О личном"],
+    TOPICS: ["Психосоматика", "Телесная терапия", "Нутрициология", "О личном", "Свой вариант"],
     HEALTH: ["100%", "75%", "50%", "Менее 50%"],
     CONSULTATION_BEEN: ["Была / Был", "Не был(а)"],
     FEEDBACK_TYPE: ["Всё понравилось 🌿", "Есть что улучшить 🌱", "Поделиться впечатлением..."],
@@ -224,8 +224,24 @@ async def question_topics(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         await update.message.reply_text("Выберите один из вариантов 👇", reply_markup=kb(TOPICS_KB))
         return TOPICS
 
+    if answer == "Свой вариант":
+        await update.message.reply_text("Напишите, какая тема Вам интересна:", reply_markup=ReplyKeyboardRemove())
+        return TOPICS_CUSTOM
+
     context.user_data["topics"] = answer
     await send_to_backend({**user_info(update), "topics": answer})
+
+    await update.message.reply_text(
+        "3️⃣ Как бы Вы оценили своё самочувствие прямо сейчас?",
+        reply_markup=kb(HEALTH_KB)
+    )
+    return HEALTH
+
+
+async def question_topics_custom(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    text = update.message.text.strip()
+    context.user_data["topics"] = text
+    await send_to_backend({**user_info(update), "topics": text})
 
     await update.message.reply_text(
         "3️⃣ Как бы Вы оценили своё самочувствие прямо сейчас?",
@@ -372,10 +388,24 @@ async def book_name_after(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     context.user_data["book_name"] = name
     user = update.effective_user
 
+    d = context.user_data
+    survey = ""
+    if d.get("visit_frequency"):
+        survey += f"\nЧастота чтения: {d['visit_frequency']}"
+    if d.get("topics"):
+        survey += f"\nТемы: {d['topics']}"
+    if d.get("health_satisfaction"):
+        survey += f"\nСамочувствие: {d['health_satisfaction']}"
+    if d.get("consultation"):
+        survey += f"\nКонсультация: {d['consultation']}"
+    if d.get("social_network"):
+        survey += f"\nСоцсеть: {d['social_network']}"
+
     if user.username:
         await notify_admins(
             context,
             f"📋 Запись на консультацию!\nИмя: {name}\nTelegram: @{user.username}"
+            + (f"\n\nОтветы из опроса:{survey}" if survey else "")
         )
         await update.message.reply_text(
             f"Готово, {name}! Ваша заявка принята.\n"
@@ -519,6 +549,7 @@ def main():
             FREQUENCY: [MessageHandler(filters.TEXT & ~filters.COMMAND, question_frequency)],
             NOT_READING_WHY: [MessageHandler(filters.TEXT & ~filters.COMMAND, question_not_reading)],
             TOPICS: [MessageHandler(filters.TEXT & ~filters.COMMAND, question_topics)],
+            TOPICS_CUSTOM: [MessageHandler(filters.TEXT & ~filters.COMMAND, question_topics_custom)],
             HEALTH: [MessageHandler(filters.TEXT & ~filters.COMMAND, question_health)],
             CONSULTATION_BEEN: [MessageHandler(filters.TEXT & ~filters.COMMAND, question_consultation)],
             FEEDBACK_TYPE: [MessageHandler(filters.TEXT & ~filters.COMMAND, question_feedback_type)],
